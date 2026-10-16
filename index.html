@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>E-Multi SME</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        papiro: '#f4f1ea',
+                        grafite: '#1A1D1A',
+                        mughal: '#296330',
+                        ouro: '#F6C81D',
+                        pergaminho: '#e8e3d5'
+                    },
+                    fontFamily: {
+                        serif: ['Georgia', 'Cambria', 'serif'],
+                        sans: ['system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- jsPDF para Geração de PDFs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Manifest PWA Dinâmico -->
+    <script>
+        const manifestData = {
+            "name": "EducaMulti PWA",
+            "short_name": "EducaMulti",
+            "start_url": "./",
+            "display": "standalone",
+            "background_color": "#f4f1ea",
+            "theme_color": "#296330",
+            "icons": [
+                {
+                    "src": "https://placehold.co/192x192/296330/f4f1ea?text=EducaMulti",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/512x512/296330/f4f1ea?text=EducaMulti",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = URL.createObjectURL(manifestBlob);
+        document.head.appendChild(link);
+    </script>
+    <meta name="theme-color" content="#296330">
+
+    <style>
+        body { background-color: #f4f1ea; color: #1A1D1A; touch-action: manipulation; }
+        .tab-btn.active { color: #296330; border-bottom: 3px solid #296330; font-weight: bold; }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="font-sans min-h-screen flex flex-col justify-between max-w-2xl mx-auto shadow-2xl bg-papiro border-x border-stone-300">
+
+    <!-- CABEÇALHO -->
+    <header class="bg-mughal text-papiro p-4 flex justify-between items-center shadow-md sticky top-0 z-50">
+        <div>
+            <h1 class="font-serif font-bold text-lg tracking-wide">E-Multi SME</h1>
+            <p id="header-user-info" class="text-xs opacity-90">Acesso Restrito</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="admin-menu-btn" class="hidden text-xs bg-ouro text-grafite px-2.5 py-1.5 rounded font-bold hover:bg-yellow-400 transition">
+                Admin
+            </button>
+            <button id="profile-menu-btn" class="hidden text-xs bg-stone-200 text-grafite px-2.5 py-1.5 rounded font-medium hover:bg-stone-300 transition">
+                Perfil
+            </button>
+            <button id="logout-btn" class="hidden text-xs bg-red-800 text-white px-2.5 py-1.5 rounded font-medium hover:bg-red-900 transition">
+                Sair
+            </button>
+        </div>
+    </header>
+
+    <!-- ÁREA PRINCIPAL DE CONTEÚDO -->
+    <main class="flex-1 p-4 overflow-y-auto">
+
+        <!-- TELA 1: LOGIN -->
+        <section id="screen-login" class="flex flex-col justify-center min-h-[70vh]">
+            <div class="bg-white p-6 rounded-lg border border-stone-300 shadow-sm space-y-4">
+                <div class="text-center">
+                    <span class="text-xs font-bold uppercase tracking-widest text-mughal">Secretaria da Educação de Capistrano</span>
+                    <h2 class="font-serif text-2xl font-bold text-grafite mt-1">Equipe Multiprofissional</h2>
+                </div>
+                <form id="login-form" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-stone-600">E-mail</label>
+                        <input type="email" id="login-email" required placeholder="seu email" class="w-full p-2.5 text-sm border border-stone-300 rounded mt-1 focus:ring-1 focus:ring-mughal outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-stone-600">Senha</label>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full p-2.5 text-sm border border-stone-300 rounded mt-1 focus:ring-1 focus:ring-mughal outline-none">
+                    </div>
+                    <button type="submit" class="w-full bg-mughal text-papiro py-2.5 rounded font-bold text-sm shadow hover:bg-emerald-900 transition">
+                        Acessar Sistema
+                    </button>
+                </form>
+                <div id="login-error" class="hidden text-xs text-red-600 text-center font-medium"></div>
+            </div>
+        </section>
+
+        <!-- TELA 2: TROCA DE SENHA OBRIGATÓRIA (PRIMEIRO ACESSO) -->
+        <section id="screen-change-password" class="hidden flex flex-col justify-center min-h-[70vh]">
+            <div class="bg-white p-6 rounded-lg border border-yellow-400 bg-yellow-50/20 shadow-sm space-y-4">
+                <div class="text-center">
+                    <span class="text-xs font-bold uppercase tracking-widest text-amber-700">Primeiro Acesso Detectado</span>
+                    <h2 class="font-serif text-xl font-bold text-grafite mt-1">Defina sua Nova Senha</h2>
+                    <p class="text-xs text-stone-600 mt-1">Por razões de segurança, altere a senha provisória fornecida pelo administrador.</p>
+                </div>
+                <form id="change-password-form" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-stone-600">Nova Senha (mínimo 6 caracteres)</label>
+                        <input type="password" id="new-password" required minlength="6" placeholder="••••••••" class="w-full p-2.5 text-sm border border-stone-300 rounded mt-1 outline-none focus:ring-1 focus:ring-mughal">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-stone-600">Confirme a Nova Senha</label>
+                        <input type="password" id="confirm-password" required minlength="6" placeholder="••••••••" class="w-full p-2.5 text-sm border border-stone-300 rounded mt-1 outline-none focus:ring-1 focus:ring-mughal">
+                    </div>
+                    <button type="submit" class="w-full bg-mughal text-papiro py-2.5 rounded font-bold text-sm shadow hover:bg-emerald-900 transition">
+                        Atualizar Senha e Continuar
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TELA 3: PERFIL DO PROFISSIONAL -->
+        <section id="screen-profile" class="hidden space-y-4">
+            <div class="flex justify-between items-center border-b border-stone-300 pb-2">
+                <h2 class="font-serif font-bold text-xl text-mughal">Configuração de Perfil</h2>
+                <button onclick="navigateHome()" class="text-xs text-stone-600 underline">Voltar</button>
+            </div>
+            <form id="profile-form" class="bg-white p-4 rounded border border-stone-300 space-y-3 text-xs">
+                <div>
+                    <label class="font-semibold block text-stone-700">Nome Completo</label>
+                    <input type="text" id="prof-nome" required class="w-full p-2 border rounded mt-1 outline-none">
+                </div>
+                <div>
+                    <label class="font-semibold block text-stone-700">Cargo / Função</label>
+                    <select id="prof-cargo" disabled class="w-full p-2 border rounded mt-1 bg-stone-100 font-bold text-mughal">
+                        <option value="Pedagogo">Pedagogo(a)</option>
+                        <option value="Psicólogo">Psicólogo(a)</option>
+                        <option value="Nutricionista">Nutricionista</option>
+                        <option value="Assistente Social">Assistente Social</option>
+                        <option value="Gastrólogo">Gastrólogo(a)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="font-semibold block text-stone-700">Foto 3x4 (Arquivo de Imagem)</label>
+                    <input type="file" id="prof-foto-input" accept="image/*" class="w-full p-1.5 border rounded mt-1">
+                    <img id="prof-foto-preview" class="w-20 h-24 object-cover border mt-2 hidden rounded" alt="Preview 3x4">
+                </div>
+                <div>
+                    <label class="font-semibold block text-stone-700">Assinatura Digitalizada do Profissional</label>
+                    <input type="file" id="prof-assinatura-input" accept="image/*" class="w-full p-1.5 border rounded mt-1">
+                    <img id="prof-assinatura-preview" class="h-16 object-contain border mt-2 hidden rounded" alt="Preview Assinatura">
+                </div>
+                <button type="submit" class="w-full bg-mughal text-papiro py-2.5 rounded font-bold text-xs hover:bg-emerald-900 transition">
+                    Salvar Perfil
+                </button>
+            </form>
+        </section>
+
+        <!-- TELA 4: PAINEL DO ADMINISTRADOR -->
+        <section id="screen-admin" class="hidden space-y-4">
+            <div class="flex justify-between items-center border-b border-stone-300 pb-2">
+                <h2 class="font-serif font-bold text-xl text-mughal">Painel Administrativo</h2>
+                <button onclick="navigateHome()" class="text-xs text-stone-600 underline">Voltar</button>
+            </div>
+            <div class="bg-white p-4 rounded border border-stone-300 space-y-3">
+                <h3 class="font-serif font-bold text-sm text-stone-800">Cadastrar Novo Profissional</h3>
+                <form id="admin-create-user-form" class="space-y-3 text-xs">
+                    <div>
+                        <label class="font-semibold text-stone-600">E-mail de Acesso</label>
+                        <input type="email" id="admin-email" required class="w-full p-2 border rounded mt-1">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-stone-600">Senha Provisória</label>
+                        <input type="text" id="admin-password" required value="Educa123!" class="w-full p-2 border rounded mt-1 bg-stone-50">
+                    </div>
+                    <div>
+                        <label class="font-semibold text-stone-600">Cargo / Tipo de Profissional</label>
+                        <select id="admin-cargo" required class="w-full p-2 border rounded mt-1 bg-papiro">
+                            <option value="Pedagogo">Pedagogo</option>
+                            <option value="Psicólogo">Psicólogo(a)</option>
+                            <option value="Nutricionista">Nutricionista</option>
+                            <option value="Assistente Social">Assistente Social</option>
+                            <option value="Gastrólogo">Gastrólogo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full bg-mughal text-papiro py-2 rounded font-bold hover:bg-emerald-900">
+                        Criar Usuário Profissional
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- TELA 5: NOVO REGISTRO DE ATIVIDADE -->
+        <section id="screen-activity" class="hidden space-y-4">
+            <div class="bg-pergaminho p-3 rounded border border-stone-300 flex justify-between items-center">
+                <div>
+                    <span class="text-[10px] font-bold uppercase text-mughal block">Registro de Atividade</span>
+                    <strong id="act-cargo-label" class="font-serif text-sm text-grafite">--</strong>
+                </div>
+                <span id="act-date-time" class="text-[10px] text-stone-500 font-mono">--/--/---- --:--</span>
+            </div>
+
+            <form id="activity-form" class="space-y-4 text-xs">
+                
+                <!-- Nome da Escola (Obrigatório sempre) -->
+                <div class="bg-white p-3 rounded border border-stone-300 space-y-1">
+                    <label class="font-bold text-stone-700 block">Unidade Escolar / Escola *</label>
+                    <input type="text" id="act-escola" required placeholder="Ex: EMEF Paulo Freire" class="w-full p-2 border rounded outline-none focus:ring-1 focus:ring-mughal">
+                </div>
+
+                <!-- Seletor de Atividade Específica -->
+                <div class="bg-white p-3 rounded border border-stone-300 space-y-1">
+                    <label class="font-bold text-stone-700 block">Tipo de Atividade *</label>
+                    <select id="act-tipo" required class="w-full p-2 border rounded bg-papiro outline-none">
+                        <!-- Opções dinâmicas injetadas via JS -->
+                    </select>
+                </div>
+
+                <!-- CAMPOS DINÂMICOS DA ATIVIDADE -->
+                <div id="dynamic-fields-container" class="space-y-3">
+                    <!-- Gerado Dinamicamente pelo JS -->
+                </div>
+
+                <!-- ASSINATURA DA ESCOLA (CANVAS) -->
+                <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                    <h4 class="font-serif font-bold text-sm text-mughal border-b pb-1">Validação do Responsável na Escola</h4>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="font-semibold text-stone-600 block">Nome do Responsável *</label>
+                            <input type="text" id="act-escola-nome" required class="w-full p-2 border rounded mt-0.5">
+                        </div>
+                        <div>
+                            <label class="font-semibold text-stone-600 block">Cargo/Função *</label>
+                            <input type="text" id="act-escola-cargo" required placeholder="Ex: Diretor(a)" class="w-full p-2 border rounded mt-0.5">
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="font-semibold text-stone-600">Assinatura na Tela (Obrigatório em Celulares) *</label>
+                            <button type="button" id="clear-canvas-btn" class="text-[10px] text-red-600 underline">Limpar Assinatura</button>
+                        </div>
+                        <canvas id="signature-canvas" class="w-full h-32 border border-stone-400 bg-stone-50 rounded"></canvas>
+                    </div>
+                </div>
+
+                <!-- BOTOES DE AÇÃO PDF -->
+                <div class="grid grid-cols-2 gap-3 pt-2">
+                    <button type="button" id="save-pdf-btn" class="bg-mughal text-papiro py-3 rounded font-bold text-xs hover:bg-emerald-900 transition flex justify-center items-center gap-1 shadow">
+                        💾 Salvar PDF
+                    </button>
+                    <button type="button" id="share-pdf-btn" class="bg-grafite text-papiro py-3 rounded font-bold text-xs hover:bg-stone-800 transition flex justify-center items-center gap-1 shadow">
+                        📲 Compartilhar PDF
+                    </button>
+                </div>
+
+            </form>
+        </section>
+
+    </main>
+
+    <!-- RODAPÉ DE STATUS PWA -->
+    <footer class="p-2 text-center text-[10px] text-stone-500 bg-pergaminho border-t border-stone-300 flex justify-between items-center px-4">
+        <span>EducaMulti v1.0 • PWA Ativo</span>
+        <button id="pwa-install-btn" class="hidden text-mughal font-bold underline">Instalar App</button>
+    </footer>
+
+    <!-- FIREBASE SDKs (v10 Modular via CDN) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, updatePassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // CREDENCIAIS DO FIREBASE
+        const firebaseConfig = {
+            apiKey: "AIzaSyDDiLHPTNIckypgJ6IzYByqUl28ozdBlH0",
+            authDomain: "app-nutri-teste.firebaseapp.com",
+            projectId: "app-nutri-teste",
+            storageBucket: "app-nutri-teste.firebasestorage.app",
+            messagingSenderId: "534387671642",
+            appId: "1:534387671642:web:6866334e9351fc4dec8e63"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let userProfile = null;
+
+        // ESTRUTURA DE ATIVIDADES E CAMPOS POR CARGO
+        const CARGO_CONFIG = {
+            "Pedagogo": {
+                atividades: [
+                    "Acompanhamento pedagógico em sala de aula",
+                    "Acompanhamento da coordenação pedagógica",
+                    "Visita técnico-pedagógica",
+                    "Intervenção pedagógica"
+                ],
+                renderFields: (tipo) => {
+                    if (tipo === "Acompanhamento pedagógico em sala de aula") {
+                        const campos = [
+                            "Planejamento da aula",
+                            "Domínio do conteúdo",
+                            "Didática",
+                            "Participação dos alunos",
+                            "Interação com os alunos"
+                        ];
+                        let html = '<div class="bg-white p-3 rounded border border-stone-300 space-y-3">';
+                        campos.forEach((campo, idx) => {
+                            html += `
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">${campo} *</label>
+                                    <select name="ped_eval_${idx}" required class="w-full p-2 border rounded bg-papiro text-xs">
+                                        <option value="">Selecione a avaliação...</option>
+                                        <option value="Excelente">Excelente</option>
+                                        <option value="Satisfatório">Satisfatório</option>
+                                        <option value="Pode melhorar">Pode melhorar</option>
+                                        <option value="Necessita de intervenção urgente">Necessita de intervenção urgente</option>
+                                    </select>
+                                </div>
+                            `;
+                        });
+                        html += `
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Observações (Opcional)</label>
+                                <textarea name="ped_obs" class="w-full p-2 border rounded h-16 text-xs" placeholder="Anotações gerais sobre a aula..."></textarea>
+                            </div>
+                        </div>`;
+                        return html;
+                    } else {
+                        return `
+                            <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Objetivo da Ação *</label>
+                                    <input type="text" name="ped_obj" required class="w-full p-2 border rounded">
+                                </div>
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Relatório da Intervenção / Acompanhamento *</label>
+                                    <textarea name="ped_relatorio" required class="w-full p-2 border rounded h-24" placeholder="Descreva os pontos abordados e encaminhamentos..."></textarea>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            },
+            "Psicólogo": {
+                atividades: [
+                    "Acolhimento psicológico",
+                    "Escuta qualificada de docente/gestor",
+                    "Orientação familiar e mediação",
+                    "Encaminhamento para a rede intersetorial"
+                ],
+                renderFields: (tipo) => {
+                    return `
+                        <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Público / Atendido(s) *</label>
+                                <input type="text" name="psi_publico" required placeholder="Ex: Estudante João Silva e Responsáveis" class="w-full p-2 border rounded">
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Relatório Descritivo do Acolhimento *</label>
+                                <textarea name="psi_relatorio" required class="w-full p-2 border rounded h-28" placeholder="Descrição dos fatos e análise técnica..."></textarea>
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Encaminhamento Externo (Se houver)</label>
+                                <div class="grid grid-cols-2 gap-2 text-stone-600">
+                                    <label class="flex items-center gap-1"><input type="checkbox" name="psi_enc" value="CRAS"> CRAS</label>
+                                    <label class="flex items-center gap-1"><input type="checkbox" name="psi_enc" value="CREAS"> CREAS</label>
+                                    <label class="flex items-center gap-1"><input type="checkbox" name="psi_enc" value="Conselho Tutelar"> Conselho Tutelar</label>
+                                    <label class="flex items-center gap-1"><input type="checkbox" name="psi_enc" value="Ministério Público"> Ministério Público</label>
+                                    <label class="flex items-center gap-1"><input type="checkbox" name="psi_enc" value="UBS / Saude"> Saúde / UBS</label>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            "Nutricionista": {
+                atividades: [
+                    "Avaliação antropométrica individual/coletiva",
+                    "Auditoria e controle de qualidade da merenda escolar",
+                    "Atividade de educação nutricional",
+                    "Atendimento nutricional individualizado"
+                ],
+                renderFields: (tipo) => {
+                    if (tipo.includes("antropométrica")) {
+                        return `
+                            <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Total de Alunos Avaliados *</label>
+                                    <input type="number" name="nut_total" required class="w-full p-2 border rounded">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="font-semibold text-stone-600 block">Eutrofia (Adequados)</label>
+                                        <input type="number" name="nut_eutroficos" class="w-full p-2 border rounded">
+                                    </div>
+                                    <div>
+                                        <label class="font-semibold text-stone-600 block">Risco / Sobrepeso</label>
+                                        <input type="number" name="nut_sobrepeso" class="w-full p-2 border rounded">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Diagnóstico Nutricional Global *</label>
+                                    <textarea name="nut_diag" required class="w-full p-2 border rounded h-16"></textarea>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        return `
+                            <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Ações Realizadas / Condições Sanitárias *</label>
+                                    <textarea name="nut_acoes" required class="w-full p-2 border rounded h-24" placeholder="Descreva os itens inspecionados ou o tema da palestra..."></textarea>
+                                </div>
+                                <div>
+                                    <label class="font-bold text-stone-700 block mb-1">Conclusão e Recomendações *</label>
+                                    <textarea name="nut_recom" required class="w-full p-2 border rounded h-16"></textarea>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            },
+            "Assistente Social": {
+                atividades: [
+                    "Visita domiciliar técnica",
+                    "Estudo de caso socioassistencial",
+                    "Busca ativa escolar",
+                    "Articulação de rede de proteção"
+                ],
+                renderFields: (tipo) => {
+                    return `
+                        <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Identificação da Família / Aluno *</label>
+                                <input type="text" name="as_familia" required class="w-full p-2 border rounded">
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Parecer Social / Situação Encontrada *</label>
+                                <textarea name="as_parecer" required class="w-full p-2 border rounded h-28" placeholder="Análise das condições socioeconômicas e de vulnerabilidade..."></textarea>
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Encaminhamentos / Providências *</label>
+                                <input type="text" name="as_prov" required placeholder="Ex: Inclusão no CadÚnico / Retorno escolar" class="w-full p-2 border rounded">
+                            </div>
+                        </div>
+                    `;
+                }
+            },
+            "Gastrólogo": {
+                atividades: [
+                    "Capacitação técnica para manipuladores de alimentos",
+                    "Desenvolvimento e ficha técnica de receitas",
+                    "Inspeção de boas práticas na cozinha",
+                    "Aproveitamento integral dos alimentos"
+                ],
+                renderFields: (tipo) => {
+                    return `
+                        <div class="bg-white p-3 rounded border border-stone-300 space-y-3">
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Cardápio / Preparação Analisada *</label>
+                                <input type="text" name="gas_preparo" required class="w-full p-2 border rounded">
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Avaliação das Boas Práticas e Higiene *</label>
+                                <select name="gas_boas_praticas" required class="w-full p-2 border rounded bg-papiro">
+                                    <option value="Conforme">Conforme os padrões</option>
+                                    <option value="Parcialmente Conforme">Parcialmente Conforme</option>
+                                    <option value="Não Conforme">Não Conforme (Exige readequação)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="font-bold text-stone-700 block mb-1">Relatório Técnico do Gastrólogo *</label>
+                                <textarea name="gas_relatorio" required class="w-full p-2 border rounded h-24" placeholder="Observações sobre cortes, cocção, armazenamento e aceitabilidade..."></textarea>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        };
+
+        // CONTROLE DE TELAS
+        function hideAllScreens() {
+            document.querySelectorAll('main > section').forEach(s => s.classList.add('hidden'));
+        }
+
+        window.navigateHome = function() {
+            hideAllScreens();
+            if (userProfile) {
+                document.getElementById('screen-activity').classList.remove('hidden');
+                setupActivityScreen();
+            } else {
+                document.getElementById('screen-profile').classList.remove('hidden');
+            }
+        };
+
+        // EVENTOS DE AUTENTICAÇÃO
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('logout-btn').classList.remove('hidden');
+                
+                // Buscar Perfil do Usuário
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                
+                if (userDoc.exists()) {
+                    userProfile = userDoc.data();
+                    
+                    // Verificar se é Primeiro Acesso
+                    if (userProfile.firstAccess) {
+                        hideAllScreens();
+                        document.getElementById('screen-change-password').classList.remove('hidden');
+                        return;
+                    }
+
+                    document.getElementById('header-user-info').textContent = `${userProfile.nome || user.email} (${userProfile.cargo})`;
+                    document.getElementById('profile-menu-btn').classList.remove('hidden');
+                    
+                    if (userProfile.isAdmin) {
+                        document.getElementById('admin-menu-btn').classList.remove('hidden');
+                    } else {
+                        document.getElementById('admin-menu-btn').classList.add('hidden');
+                    }
+
+                    navigateHome();
+                } else {
+                    // Perfil ainda não configurado
+                    hideAllScreens();
+                    document.getElementById('screen-profile').classList.remove('hidden');
+                }
+
+            } else {
+                currentUser = null;
+                userProfile = null;
+                document.getElementById('header-user-info').textContent = 'Acesso Restrito';
+                document.getElementById('logout-btn').classList.add('hidden');
+                document.getElementById('profile-menu-btn').classList.add('hidden');
+                document.getElementById('admin-menu-btn').classList.add('hidden');
+                hideAllScreens();
+                document.getElementById('screen-login').classList.remove('hidden');
+            }
+        });
+
+        // LOGIN
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const pass = document.getElementById('login-password').value;
+            const err = document.getElementById('login-error');
+            err.classList.add('hidden');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+            } catch (error) {
+                err.textContent = "Falha na autenticação. Verifique suas credenciais.";
+                err.classList.remove('hidden');
+            }
+        });
+
+        // TROCA DE SENHA (PRIMEIRO ACESSO)
+        document.getElementById('change-password-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const p1 = document.getElementById('new-password').value;
+            const p2 = document.getElementById('confirm-password').value;
+
+            if (p1 !== p2) {
+                alert('As senhas não coincidem!');
+                return;
+            }
+
+            try {
+                await updatePassword(auth.currentUser, p1);
+                await updateDoc(doc(db, "users", auth.currentUser.uid), { firstAccess: false });
+                userProfile.firstAccess = false;
+                alert('Senha alterada com sucesso!');
+                navigateHome();
+            } catch (err) {
+                alert('Erro ao atualizar senha: ' + err.message);
+            }
+        });
+
+        // SALVAR PERFIL DO PROFISSIONAL
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('prof-nome').value.trim();
+            const cargo = document.getElementById('prof-cargo').value;
+
+            const fotoInput = document.getElementById('prof-foto-input');
+            const assInput = document.getElementById('prof-assinatura-input');
+
+            let fotoBase64 = userProfile?.foto || '';
+            let assBase64 = userProfile?.assinatura || '';
+
+            if (fotoInput.files[0]) fotoBase64 = await fileToBase64(fotoInput.files[0]);
+            if (assInput.files[0]) assBase64 = await fileToBase64(assInput.files[0]);
+
+            const profileData = {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                nome: nome,
+                cargo: cargo,
+                foto: fotoBase64,
+                assinatura: assBase64,
+                firstAccess: false
+            };
+
+            await setDoc(doc(db, "users", currentUser.uid), profileData, { merge: true });
+            userProfile = profileData;
+            alert('Perfil atualizado!');
+            navigateHome();
+        });
+
+        function fileToBase64(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // MONTAGEM DA TELA DE ATIVIDADES
+        function setupActivityScreen() {
+            document.getElementById('act-cargo-label').textContent = `${userProfile.cargo} • ${userProfile.nome}`;
+            document.getElementById('act-date-time').textContent = new Date().toLocaleString('pt-BR');
+
+            const cargoConf = CARGO_CONFIG[userProfile.cargo] || CARGO_CONFIG["Pedagogo"];
+            const selectTipo = document.getElementById('act-tipo');
+            selectTipo.innerHTML = cargoConf.atividades.map(a => `<option value="${a}">${a}</option>`).join('');
+
+            // Evento ao mudar tipo de atividade
+            selectTipo.onchange = () => {
+                const fieldsContainer = document.getElementById('dynamic-fields-container');
+                fieldsContainer.innerHTML = cargoConf.renderFields(selectTipo.value);
+            };
+
+            selectTipo.onchange(); // Renderiza inicial
+            initCanvas();
+        }
+
+        // CANVAS DE ASSINATURA DA ESCOLA
+        let canvas, ctx, drawing = false;
+
+        function initCanvas() {
+            canvas = document.getElementById('signature-canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#1A1D1A';
+
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDraw);
+
+            canvas.addEventListener('touchstart', (e) => { startDraw(e.touches[0]); e.preventDefault(); });
+            canvas.addEventListener('touchmove', (e) => { draw(e.touches[0]); e.preventDefault(); });
+            canvas.addEventListener('touchend', stopDraw);
+        }
+
+        function startDraw(e) {
+            drawing = true;
+            const rect = canvas.getBoundingClientRect();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+        }
+
+        function stopDraw() { drawing = false; }
+
+        document.getElementById('clear-canvas-btn').onclick = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        };
+
+        // GERADOR DE PDF
+        async function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const docPdf = new jsPDF();
+
+            const escola = document.getElementById('act-escola').value;
+            const tipoAtividade = document.getElementById('act-tipo').value;
+            const escolaNome = document.getElementById('act-escola-nome').value;
+            const escolaCargo = document.getElementById('act-escola-cargo').value;
+
+            if (!escola || !escolaNome || !escolaCargo) {
+                alert('Preencha o nome da escola e a identificação do responsável.');
+                return null;
+            }
+
+            // Cabeçalho Oficial
+            docPdf.setFillColor(41, 99, 48); // Mughal Green
+            docPdf.rect(0, 0, 210, 25, 'F');
+            docPdf.setTextColor(244, 241, 234);
+            docPdf.setFont('Georgia', 'bold');
+            docPdf.setFontSize(14);
+            docPdf.text("SECRETARIA DE EDUCAÇÃO - EQUIPE MULTIPROFISSIONAL", 10, 12);
+            docPdf.setFontSize(10);
+            docPdf.text(`REGISTRO DE ATIVIDADE - ${userProfile.cargo.toUpperCase()}`, 10, 19);
+
+            // Dados Gerais
+            docPdf.setTextColor(26, 29, 26);
+            docPdf.setFontSize(10);
+            docPdf.text(`Unidade Escolar: ${escola}`, 10, 35);
+            docPdf.text(`Data/Hora: ${new Date().toLocaleString('pt-BR')}`, 10, 42);
+            docPdf.text(`Profissional: ${userProfile.nome} (${userProfile.cargo})`, 10, 49);
+            docPdf.text(`Atividade: ${tipoAtividade}`, 10, 56);
+
+            docPdf.line(10, 60, 200, 60);
+
+            // Capturar Campos Dinâmicos
+            let y = 68;
+            docPdf.setFontSize(11);
+            docPdf.setFont('Georgia', 'bold');
+            docPdf.text("Detalhamento da Atividade:", 10, y);
+            y += 8;
+
+            docPdf.setFontSize(9);
+            docPdf.setFont('helvetica', 'normal');
+
+            const formElements = document.getElementById('dynamic-fields-container').querySelectorAll('input, select, textarea');
+            formElements.forEach(el => {
+                if (el.type !== 'checkbox' || el.checked) {
+                    const label = el.previousElementSibling?.textContent || el.name;
+                    const val = el.value;
+                    if (val) {
+                        docPdf.text(`${label}: ${val}`, 12, y);
+                        y += 6;
+                    }
+                }
+            });
+
+            // Assinaturas no Rodapé
+            y = Math.max(y + 15, 210);
+            docPdf.line(10, y, 200, y);
+            y += 10;
+
+            // Assinatura Profissional
+            if (userProfile.assinatura) {
+                docPdf.addImage(userProfile.assinatura, 'PNG', 15, y, 50, 15);
+            }
+            docPdf.text("__________________________________", 15, y + 20);
+            docPdf.text(`${userProfile.nome}`, 15, y + 25);
+            docPdf.text(`${userProfile.cargo}`, 15, y + 29);
+
+            // Assinatura Escola
+            const canvasData = canvas.toDataURL('image/png');
+            docPdf.addImage(canvasData, 'PNG', 120, y, 50, 15);
+            docPdf.text("__________________________________", 120, y + 20);
+            docPdf.text(`${escolaNome}`, 120, y + 25);
+            docPdf.text(`${escolaCargo}`, 120, y + 29);
+
+            return docPdf;
+        }
+
+        // SALVAR PDF
+        document.getElementById('save-pdf-btn').onclick = async () => {
+            const pdf = await generatePDF();
+            if (pdf) pdf.save(`Atividade_${userProfile.cargo}_${Date.now()}.pdf`);
+        };
+
+        // COMPARTILHAR PDF (Web Share API)
+        document.getElementById('share-pdf-btn').onclick = async () => {
+            const pdf = await generatePDF();
+            if (!pdf) return;
+
+            const blob = pdf.output('blob');
+            const file = new File([blob], `Atividade_${userProfile.cargo}.pdf`, { type: 'application/pdf' });
+
+            if (navigator.share && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Registro de Atividade Multiprofissional',
+                    text: 'Segue em anexo o PDF comprovante da atividade realizada.'
+                });
+            } else {
+                alert('O seu navegador não suporta o compartilhamento direto de ficheiros. O arquivo será baixado.');
+                pdf.save(`Atividade_${userProfile.cargo}.pdf`);
+            }
+        };
+
+        // ADMIN: CRIAR USUÁRIO
+        document.getElementById('admin-create-user-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value;
+            const pass = document.getElementById('admin-password').value;
+            const cargo = document.getElementById('admin-cargo').value;
+
+            try {
+                // Criação da conta de autenticação no Firebase
+                const res = await createUserWithEmailAndPassword(auth, email, pass);
+                
+                // Registro inicial no Firestore
+                await setDoc(doc(db, "users", res.user.uid), {
+                    uid: res.user.uid,
+                    email: email,
+                    cargo: cargo,
+                    firstAccess: true,
+                    isAdmin: false
+                });
+
+                alert(`Usuário criado com sucesso!\nE-mail: ${email}\nSenha Provisória: ${pass}`);
+                document.getElementById('admin-create-user-form').reset();
+            } catch (err) {
+                alert('Erro ao criar usuário: ' + err.message);
+            }
+        };
+
+        // NAVEGAÇÃO DE MENUS
+        document.getElementById('logout-btn').onclick = () => signOut(auth);
+        document.getElementById('profile-menu-btn').onclick = () => {
+            hideAllScreens();
+            document.getElementById('screen-profile').classList.remove('hidden');
+            document.getElementById('prof-nome').value = userProfile?.nome || '';
+            document.getElementById('prof-cargo').value = userProfile?.cargo || 'Pedagogo';
+        };
+        document.getElementById('admin-menu-btn').onclick = () => {
+            hideAllScreens();
+            document.getElementById('screen-admin').classList.remove('hidden');
+        };
+    </script>
+
+    <!-- SERVICE WORKER PARA SUPORTE OFFLINE -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            const swCode = `
+                self.addEventListener('install', e => self.skipWaiting());
+                self.addEventListener('activate', e => clients.claim());
+                self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('Offline'))));
+            `;
+            const blob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(blob));
+        }
+    </script>
+</body>
+</html>
